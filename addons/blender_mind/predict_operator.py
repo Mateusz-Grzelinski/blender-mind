@@ -1,6 +1,8 @@
 import bpy
 import inspect
+from pprint import pprint
 from typing import *
+from gensim.models import Word2Vec
 
 
 def get_reports(context) -> List[str]:
@@ -43,6 +45,12 @@ def _list_blender_operators() -> List[bpy.types.Operator]:
     return result
 
 
+class VocabCorpus:
+    def __iter__(self):
+        for line in open('vocab.txt'):
+            yield [line.replace('\n', '')]
+
+
 class Prediction:
     def __init__(self, operator: bpy.types.Operator, rank: float, operator_arguments: Dict[str, Any] = None):
         self.operator = operator
@@ -54,18 +62,49 @@ def predict(context: bpy.types.Context,
             blender_operators: List[bpy.types.Operator],
             reports: List[str]) -> List[Prediction]:
     """
+       :param context: copy of blender context, can be used for checking which operators can be executed: Operator.poll(context)
+       :param blender_operators: list of possible operators
+       :param reports: history of user actions
+       :return: list of predictions
+       """
 
-    :param context: copy of blender context, can be used for checking which operators can be executed: Operator.poll(context)
-    :param blender_operators: list of possible operators
-    :param reports: history of user actions
-    :return: list of predictions
-    """
-    return [Prediction(rank=0.1, operator=bpy.ops.mesh.primitive_plane_add)]
+    with open("vocab.txt", "w") as vocab_file:
+        for op in blender_operators:
+            vocab_file.write(op.idname_py())
+            vocab_file.write('\n')
+
+    with open("history.txt", "a") as f:
+        for report in reports:
+            f.write(report.split('(')[0][8:] + '\n')
+
+    name_to_operator = dict((operator.idname_py(), operator) for operator in blender_operators)
+
+    model, last_operation = train_word2vec("history.txt")
+    similar_operators = model.most_similar(positive=[last_operation], topn=3)
+    return list(map(lambda similar_operator:
+                    Prediction(operator=name_to_operator.get(similar_operator[0]), rank=similar_operator[1]),
+                    similar_operators))
+
+
+def train_word2vec(history_file):
+    words = []
+    with open(history_file, 'r') as f:
+        for line in f.readlines():
+            words.append(line.replace('\n', ''))
+
+    last_operation = words[len(words)-1]
+
+    sentences = VocabCorpus()
+    model = Word2Vec()
+    model.build_vocab(sentences=sentences, min_count=1)
+    model.train(words, total_words=model.corpus_count, epochs=10)
+
+    return model, last_operation
 
 
 class WM_OT_predict_operator(bpy.types.Operator):
     bl_idname = 'wm.predict_operator'
-    bl_label = 'Predict Operator'
+    bl_label = 'Predict Operator 3'
     bl_options = {'REGISTER', 'UNDO'}
 
     predictions: List[Prediction]
