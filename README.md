@@ -13,6 +13,10 @@ I will think how to do it properly, but for now, **do one of**:
 - For development add this repo to your scripts path (`Preferences->File Paths->Data->Scripts`).
  Reload by restarting Blender of search for `Reload Scripts` operator (does not work always)
  
+### Dependencies:
+
+See `modules/README.md` - you must install it manually
+
 ## Development
 
 - I assigned `F` to launch predictor operator for fast testing
