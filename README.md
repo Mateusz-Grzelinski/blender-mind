@@ -6,7 +6,7 @@ Predict your next action in Blender.
 
 ## How to install
 
-I will think how to do it properly, but for now, do one of:
+I will think how to do it properly, but for now, **do one of**:
 
 - Copy `addon/blender_mind` to your `Blender/2.90/scripts/addons`
 - Pack `addon/blender_mind` to zip and install like any other blender addon
@@ -15,5 +15,5 @@ I will think how to do it properly, but for now, do one of:
  
 ## Development
 
-- I assigned `F` to lauch predictor operator for fast testing
+- I assigned `F` to launch predictor operator for fast testing
 - use `pycharm_launch_blender.py` for quick start

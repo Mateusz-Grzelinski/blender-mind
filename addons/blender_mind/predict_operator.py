@@ -58,7 +58,7 @@ class Prediction:
         self.operator_arguments = operator_arguments or {}
 
 
-def predict(context: bpy.types.Context,
+def predict(context: Dict,
             blender_operators: List[bpy.types.Operator],
             reports: List[str]) -> List[Prediction]:
     """
@@ -104,15 +104,18 @@ def train_word2vec(history_file):
 
 class WM_OT_predict_operator(bpy.types.Operator):
     bl_idname = 'wm.predict_operator'
-    bl_label = 'Predict Operator 3'
+    bl_label = 'Predict Operator'
     bl_options = {'REGISTER', 'UNDO'}
 
     predictions: List[Prediction]
-    chosen_prediction: bpy.props.IntProperty(name="Prediction Index")
+    chosen_prediction: bpy.props.IntProperty(name="Prediction Index", min=0, soft_min=0)
 
     def execute(self, context):
         # execute operator that user chose
-        chosen_prediction = self.predictions[self.chosen_prediction]
+        try:
+            chosen_prediction = self.predictions[self.chosen_prediction]
+        except IndexError:
+            return {'CANCELLED'}
         chosen_prediction.operator.__call__()  # todo handle obligatory arguments
         return {'FINISHED'}
 
