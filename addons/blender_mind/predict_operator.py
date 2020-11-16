@@ -1,5 +1,6 @@
 import bpy
 import inspect
+import logging
 from pprint import pprint
 from typing import *
 from gensim.models import Word2Vec
@@ -80,10 +81,12 @@ def predict(context: Dict,
     name_to_operator = dict((operator.idname_py(), operator) for operator in blender_operators)
 
     model, last_operation = train_word2vec("history.txt")
+    valid_operator_names = {op.idname_py() for op in blender_operators if op.poll(context)}
     similar_operators = model.most_similar(positive=[last_operation], topn=3)
-    return list(map(lambda similar_operator:
-                    Prediction(operator=name_to_operator.get(similar_operator[0]), rank=similar_operator[1]),
-                    similar_operators))
+    return list(
+        Prediction(operator=name_to_operator.get(similar_operator[0]), rank=similar_operator[1]) for similar_operator in
+        similar_operators  # if similar_operators[0] in valid_operator_names
+    )
 
 
 def train_word2vec(history_file):
@@ -92,7 +95,7 @@ def train_word2vec(history_file):
         for line in f.readlines():
             words.append(line.replace('\n', ''))
 
-    last_operation = words[len(words)-1]
+    last_operation = words[len(words) - 1]
 
     sentences = VocabCorpus()
     model = Word2Vec()
