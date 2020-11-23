@@ -153,10 +153,10 @@ class Model:
         self.previous_command = current_command
 
     def predict(self, current_command, n):
-        # try:  # TODO Piotr
-        row = self.c[self.command_to_index[current_command]]
-        # except KeyError:
-        #     return []
+        try:
+            row = self.c[self.command_to_index[current_command]]
+        except KeyError:
+            return []
         indices = [i for i in range(0, len(row))]
         values_dict = dict(zip(indices, row))
         sorted_dict = {k: v for k, v in sorted(values_dict.items(), key=lambda item: item[1], reverse=True)}
