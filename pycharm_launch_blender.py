@@ -12,8 +12,10 @@ addon_utils.enable(module_name='blender_mind', default_set=True)
 bpy.ops.debug.connect_debugger_pycharm()
 """
 
-with tempfile.NamedTemporaryFile('w') as file:
-    file.write(script)
-    command = f'blender --python {file.name} start.blend'
-    print(command)
-    os.system(command)
+file = tempfile.NamedTemporaryFile('w')
+file.write(script)
+command = f'blender --python {file.name} start.blend'
+print(command)
+os.system(command)
+
+file.close()
