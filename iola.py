@@ -107,7 +107,6 @@ def evaluate_model(model, commands, top_n=3, predict_only_commands: set = None):
     for i in range(len(commands) - 1):
         next_command = commands[i + 1]
         predicted_commands = model.predict(commands[i], top_n)
-        # print(next_command, predicted_commands)
         if predict_only_commands and commands[i] not in predict_only_commands:
             continue
         if next_command in predicted_commands:
@@ -123,6 +122,7 @@ class Model:
         self.command_to_index = {}
         self.index_to_command = {}
         self.c = []
+        self.default_row = [1]
         self.alpha = 0.8
         self.initial_value = 1
         self.previous_command = None
@@ -137,6 +137,8 @@ class Model:
                 for i in range(len(self.command_to_index) - 1):
                     self.c[i].append(min(self.c[i]))
 
+                self.default_row.append(min(self.default_row))
+
         if self.previous_command is None:
             self.previous_command = current_command
             return
@@ -146,9 +148,12 @@ class Model:
 
         for i in range(len(self.c[previous_command_index])):
             self.c[previous_command_index][i] = self.c[previous_command_index][i] * self.alpha
+            self.default_row[i] = self.default_row[i] * self.alpha
 
         self.c[previous_command_index][current_command_index] \
             = self.c[previous_command_index][current_command_index] + (1 - self.alpha)
+
+        self.default_row[current_command_index] = self.default_row[current_command_index] + (1 - self.alpha)
 
         self.previous_command = current_command
 
@@ -156,7 +161,7 @@ class Model:
         try:
             row = self.c[self.command_to_index[current_command]]
         except KeyError:
-            return []
+            row = self.default_row
         indices = [i for i in range(0, len(row))]
         values_dict = dict(zip(indices, row))
         sorted_dict = {k: v for k, v in sorted(values_dict.items(), key=lambda item: item[1], reverse=True)}
