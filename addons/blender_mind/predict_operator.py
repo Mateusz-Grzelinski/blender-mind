@@ -1,9 +1,12 @@
 import logging
+import math
 from collections import defaultdict
 
 import bpy
 import inspect
 from typing import *
+
+from .models import MostUsed
 
 logging.basicConfig(level=logging.DEBUG, format='%(levelname)s %(pathname)s:%(lineno)d  %(message)s')
 
@@ -76,61 +79,9 @@ def reports_to_operators(reports: List[str], operators: List[bpy.types.Operator]
     return ops
 
 
-class Prediction:
-    def __init__(self, operator: bpy.types.Operator, rating: float, operator_arguments: Dict[str, Any] = None):
-        self.operator = operator
-        self.rating = rating
-        self.operator_arguments = operator_arguments or {}
-
-
-class MostRecentlyUsedPredictionModel:
-    def __init__(self, all_operators: List[bpy.types.Operator], history: List[bpy.types.Operator]):
-        self.history = history
-        self.all_operators = all_operators
-
-    def predict(self, context: Dict) -> Generator[Prediction, None, None]:
-        valid_operators = set()
-        the_rest = set()
-        for op in self.all_operators:
-            if op.poll():
-                valid_operators.add(op)
-            else:
-                the_rest.add(op)
-
-        best_fits = {op.idname(): Prediction(operator=op, rating=0) for op in valid_operators}
-        history_idname = [op.idname() for op in self.history]
-        # simple frequency based
-        for op_idname in best_fits:
-            best_fits[op_idname].rating += history_idname.count(op_idname) / 10
-
-        # frequency based, but only after occurrences
-        try:
-            last_action = self.history[-1]
-        except IndexError:
-            pass
-        else:
-            operators_in_history = defaultdict(list)
-            for i, op in enumerate(self.history):
-                operators_in_history[op.idname()].append(i)
-
-            occurrences = operators_in_history[last_action.idname()]
-            for index in occurrences:
-                try:
-                    next_action = self.history[index + 1]  # can fail on last history element
-                    # skip repeated calls
-                    if next_action.idname() != last_action.idname():
-                        best_fits[next_action.idname()].rating += 1  # can fail on unknown operator
-                except IndexError:
-                    continue
-        for op_idname, prediction in sorted(best_fits.items(), key=lambda item: item[1].rating, reverse=True):
-            yield prediction
-        for op in the_rest:
-            yield Prediction(operator=op, rating=-1)
-
-
 def predict(context: Dict,
             blender_operators: List[bpy.types.Operator],
-            reports: List[str]) -> List[Prediction]:
+            reports: List[str]) -> List[str]:
     """
 
     :param context: copy of blender context, can be used for checking which operators can be executed: Operator.poll(context)
@@ -138,9 +89,16 @@ def predict(context: Dict,
     :param reports: history of user actions
     :return: list of predictions
     """
+    if not reports:
+        return sorted(op.idname() for op in blender_operators)
     history = reports_to_operators(reports=reports, operators=blender_operators)
-    model = MostRecentlyUsedPredictionModel(all_operators=blender_operators, history=history)
-    return list(model.predict(context))
+
+    # not the best way to do it...
+    model = MostUsed()
+    for op in history[:-1]:
+        model.update(op.idname_py())
+    # todo use context to filter predictions
+    return model.predict(current_command=history[-1].idname_py(), n=99999999999)
 
 
 _Identifier = str
@@ -148,18 +106,19 @@ _Name = str
 _Description = str
 _EnumItem = Tuple[_Identifier, _Name, _Description]
 
-predictions = []
+predictions = []  # List[op.idname_py()]
 
 
 # this can be called multiple times, this is only view layer!
 def get_enum_operators_callback(self: "WM_OT_predict_operator", context) -> List[_EnumItem]:
     enum_predictions = []
     for pred in predictions:
-        t = pred.operator.get_rna_type()
+        operator = get_operator(pred)
+        t = operator.get_rna_type()
         if t.name:
-            name = f'{t.name} ({pred.rating}) {pred.operator.idname_py()}'
+            name = f'{t.name}'
         else:
-            name = f'{pred.operator.idname_py()} ({pred.rating})'
+            name = f'{operator.idname_py()}'
         enum_predictions.append((t.identifier, name, t.description))
     return enum_predictions
 
@@ -198,3 +157,10 @@ class WM_OT_predict_operator(bpy.types.Operator):
         logging.info(f'Showing predictions for {len(predictions)}/{len(_operators)} operators')
         context.window_manager.invoke_search_popup(self)
         return {'RUNNING_MODAL'}
+
+
+classes = (
+    WM_OT_predict_operator,
+)
+
+register, unregister = bpy.utils.register_classes_factory(classes)

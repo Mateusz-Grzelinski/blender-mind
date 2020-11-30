@@ -11,15 +11,13 @@ bl_info = {
     "category": "Generic"
 }
 
-from . import auto_load
-
-auto_load.init()
-
 addon_keymaps = []
+
+from . import predict_operator
 
 
 def register():
-    auto_load.register()
+    predict_operator.register()
 
     wm = bpy.context.window_manager
     kc = wm.keyconfigs.addon
@@ -30,7 +28,7 @@ def register():
 
 
 def unregister():
-    auto_load.unregister()
+    predict_operator.unregister()
 
     for km, kmi in addon_keymaps:
         km.keymap_items.remove(kmi)
