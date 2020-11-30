@@ -1,8 +1,7 @@
 import collections
 import matplotlib.pyplot as plt
 
-from iola import IOLA
-from others import MostUsed, Bigram, Trigram
+from models import IOLA, MostUsed, Bigram, Trigram
 
 
 def evaluate_model(model, commands, top_n=3, predict_only_commands: set = None):
@@ -12,7 +11,7 @@ def evaluate_model(model, commands, top_n=3, predict_only_commands: set = None):
 
     for i in range(len(commands) - 1):
         next_command = commands[i + 1]
-        predicted_commands = model.predict(commands[i], top_n, history=commands[i - 11:i - 1])
+        predicted_commands = model.predict(commands[i], top_n)
         # print(next_command, predicted_commands)
         if predict_only_commands and commands[i] not in predict_only_commands:
             continue
