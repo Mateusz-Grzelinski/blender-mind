@@ -5,6 +5,8 @@ import bpy
 import inspect
 from typing import *
 
+from .iola import Model
+
 logging.basicConfig(level=logging.DEBUG, format='%(levelname)s %(pathname)s:%(lineno)d  %(message)s')
 
 
@@ -73,6 +75,7 @@ def reports_to_operators(reports: List[str], operators: List[bpy.types.Operator]
         access_path = report.split('(')[0]
         op_name = access_path[len('bpy.ops.'):]
         ops.append(get_operator(op_name))
+    print(ops)
     return ops
 
 
@@ -128,6 +131,37 @@ class MostRecentlyUsedPredictionModel:
             yield Prediction(operator=op, rating=-1)
 
 
+class IolaPredictionModel:
+    def __init__(self, all_operators: List[bpy.types.Operator], history: List[bpy.types.Operator]):
+        self.history = history
+        self.all_operators = all_operators
+
+    def predict(self, context: Dict) -> Generator[Prediction, None, None]:
+        valid_operators = set()
+        the_rest = set()
+        for op in self.all_operators:
+            if op.poll():
+                valid_operators.add(op)
+            else:
+                the_rest.add(op)
+
+        # frequency based, but only after occurrences
+        try:
+            last_action = self.history[-1]
+        except IndexError:
+            pass
+        else:
+            model = Model(0.9)
+            for command in self.history:
+                model.update(command)
+
+            for (op, rating) in model.predict(last_action, 20):
+                yield Prediction(operator=op, rating=rating)
+
+            for op in the_rest:
+                yield Prediction(operator=op, rating=-1)
+
+
 def predict(context: Dict,
             blender_operators: List[bpy.types.Operator],
             reports: List[str]) -> List[Prediction]:
@@ -139,7 +173,8 @@ def predict(context: Dict,
     :return: list of predictions
     """
     history = reports_to_operators(reports=reports, operators=blender_operators)
-    model = MostRecentlyUsedPredictionModel(all_operators=blender_operators, history=history)
+    #model = MostRecentlyUsedPredictionModel(all_operators=blender_operators, history=history)
+    model = IolaPredictionModel(all_operators=blender_operators, history=history)
     return list(model.predict(context))
 
 

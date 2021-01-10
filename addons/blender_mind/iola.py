@@ -5,7 +5,7 @@ import seaborn as sns
 
 
 def main():
-    commands = load_history("unixhist.txt")
+    commands = load_history("../../unixhist.txt")
     top = [1, 2, 3, 4, 5, 6, 7, 8]
     # model = Model(0.8)
     # train_commands = commands[:round(len(commands) / 2)]
@@ -188,9 +188,12 @@ class Model:
         sorted_dict = {k: v for k, v in sorted(values_dict.items(), key=lambda item: item[1], reverse=True)}
 
         result = []
+        if n > len(sorted_dict.keys()):
+            n = len(sorted_dict.keys())
+
         for i in range(n):
             predicted_index = list(sorted_dict.keys())[i]
-            result.append(self.index_to_command.get(predicted_index))
+            result.append((self.index_to_command.get(predicted_index), values_dict.get(predicted_index)))
 
         return result
 
